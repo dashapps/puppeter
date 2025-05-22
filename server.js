@@ -20,6 +20,12 @@ app.post('/render', async (req, res) => {
     const tempFile = path.join(__dirname, 'temp.html');
     fs.writeFileSync(tempFile, compiled);
 
+    // 💡 Парсим размеры из CSS
+    const widthMatch = compiled.match(/body\s*{[^}]*width:\s*(\d+)px/);
+    const heightMatch = compiled.match(/body\s*{[^}]*height:\s*(\d+)px/);
+    const width = widthMatch ? parseInt(widthMatch[1], 10) : 1280;
+    const height = heightMatch ? parseInt(heightMatch[1], 10) : 720;
+
     const browser = await puppeteer.launch({
       headless: 'new',
       args: ['--no-sandbox'],
@@ -27,6 +33,7 @@ app.post('/render', async (req, res) => {
     });
 
     const page = await browser.newPage();
+    await page.setViewport({ width, height }); // 💥 ОБЯЗАТЕЛЬНО ДО `goto`
     await page.goto('file://' + tempFile);
     const buffer = await page.screenshot({ type: 'webp' });
     await browser.close();
@@ -36,7 +43,7 @@ app.post('/render', async (req, res) => {
 
   } catch (err) {
     console.error('Render fail:', err);
-    res.status(500).send('Internal error');
+    res.status(500).send('Internal error: ' + err.message);
   }
 });
 
